@@ -8,6 +8,7 @@ using System.Security.Claims;
 using Polly;
 using Polly.Extensions.Http;
 using ProductCatalogue.Services.ProductsRepo;
+using Microsoft.VisualBasic;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +66,26 @@ else
 builder.Services.AddTransient<IProductsRepo, ProductsRepo>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var env = services.GetRequiredService<IWebHostEnvironment>();
+    if (env.IsDevelopment())
+    {
+        var context = services.GetRequiredService<ProductsContext>();
+        try
+        {
+            ProductsInitaliser.SeedTestData(context).Wait();
+
+        }
+        catch (Exception e)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogDebug("Seeding test data to db has failed."); 
+        }
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
