@@ -1,3 +1,5 @@
 {
-    "dotnet.defaultSolution": "ProductCatalogue.sln"
+    "dotnet.defaultSolution": "ProductCatalogue.sln",
+    "appService.preDeployTask": "publish-release",
+    "appService.deploySubpath": "ProductCatalogue/bin/Release/net8.0/publish"
 }
