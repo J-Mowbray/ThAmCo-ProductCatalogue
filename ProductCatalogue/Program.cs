@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using ProductCatalogue.Services.UnderCutters;
 using System.Security.Claims;
  
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +20,10 @@ builder.Services
         options.Audience = builder.Configuration["Auth:Audience"];
     });
 builder.Services.AddAuthorization();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<IUnderCuttersService, UnderCuttersServiceFake>();
+}
 
 var app = builder.Build();
 
