@@ -3,7 +3,7 @@ name: build
 on: [push]
 
 env:
-  DOTNET_VERSION: 7.0.x
+  DOTNET_VERSION: 8.0.x
   BUILD_CONFIGURATION: Release
   PROJECT_PATH: ./ProductCatalogue   
   PUBLISH_PATH: ./myapp
