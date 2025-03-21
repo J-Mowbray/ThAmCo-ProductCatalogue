@@ -1,0 +1,51 @@
+name: build
+
+on: [push]
+
+env:
+  DOTNET_VERSION: 7.0.x
+  BUILD_CONFIGURATION: Release
+  PROJECT_PATH: ./ProductCatalogue   
+  PUBLISH_PATH: ./myapp
+  TESTRESULTS_PATH: ./test-results
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build code
+        run: |
+          dotnet build \
+            --configuration $BUILD_CONFIGURATION \
+            --no-restore
+      - name: Run unit tests
+        run: |
+          dotnet test \
+            --configuration $BUILD_CONFIGURATION \
+            --no-build \
+            --logger trx \
+            --results-directory $TESTRESULTS_PATH
+      - name: Store test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: ${{ env.TESTRESULTS_PATH }}
+        if: ${{ always() }} # ensures test results uploaded even after failure
+      - name: Package build
+        run: |
+          dotnet publish $PROJECT_PATH \
+            --configuration $BUILD_CONFIGURATION \
+            --no-build \
+            --output $PUBLISH_PATH
+      - name: Store build artefact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: ${{ env.PUBLISH_PATH }}
