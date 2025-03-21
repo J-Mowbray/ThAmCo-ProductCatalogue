@@ -45,7 +45,7 @@ jobs:
             --no-build \
             --output $PUBLISH_PATH
       - name: Store build artefact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build
           path: ${{ env.PUBLISH_PATH }}
