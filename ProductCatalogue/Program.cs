@@ -26,10 +26,24 @@ builder.Services
         options.Audience = builder.Configuration["Auth:Audience"];
     });
 builder.Services.AddAuthorization();
+
+// Register UnderCuttersService with appropriate implementation for environment
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<IUnderCuttersService, UnderCuttersServiceFake>();
 }
+else
+{
+    // Production - use real service with Polly for resilience
+    builder.Services.AddHttpClient<IUnderCuttersService, UnderCuttersService>(client =>
+    {
+        client.BaseAddress = new Uri(builder.Configuration["WebServices:UnderCutters:BaseUrl"]);
+    })
+    .AddPolicyHandler(GetRetryPolicy())
+    .AddPolicyHandler(GetCircuitBreakerPolicy());
+}
+
+// Configure DB context
 builder.Services.AddDbContext<ProductsContext>(options =>
 {
     if (builder.Environment.IsDevelopment())
@@ -54,19 +68,12 @@ builder.Services.AddDbContext<ProductsContext>(options =>
     }
 });
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddSingleton<IUnderCuttersService, UnderCuttersServiceFake>();
-    
-}
-else
-{
-   
-}
+// Register ProductsRepo
 builder.Services.AddTransient<IProductsRepo, ProductsRepo>();
 
 var app = builder.Build();
 
+// Seed development data
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -77,7 +84,6 @@ using (var scope = app.Services.CreateScope())
         try
         {
             ProductsInitaliser.SeedTestData(context).Wait();
-
         }
         catch (Exception e)
         {
@@ -103,3 +109,29 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Helper methods for Polly policies
+static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+{
+    return HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
+        .WaitAndRetryAsync(
+            6, // Number of retry attempts
+            retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // Exponential backoff
+            onRetry: (outcome, timespan, retryAttempt, context) =>
+            {
+                // You can log retry attempts here if needed
+                Console.WriteLine($"Delaying for {timespan.TotalSeconds} seconds, then making retry {retryAttempt}");
+            });
+}
+
+static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
+{
+    return HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .CircuitBreakerAsync(
+            5, // Number of exceptions or failures before breaking the circuit
+            TimeSpan.FromSeconds(30) // Duration circuit opens before retry
+        );
+}
