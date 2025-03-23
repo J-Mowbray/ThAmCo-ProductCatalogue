@@ -11,7 +11,7 @@ env:
   PROJECT_PATH: ./ProductCatalogue   
   PUBLISH_PATH: ./myapp
   TESTRESULTS_PATH: ./test-results
-  AZURE_WEBAPP_NAME: thamcoproductcatalogue-cuc2dzgkb9e3ehej
+  AZURE_WEBAPP_NAME: ThAmCoProductCatalogue  # Updated to match profile name
 
 jobs:
   build:
@@ -114,7 +114,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-name: ThAmCoProductCatalogue  # Updated to match profile name
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ${{ env.PUBLISH_PATH }}
       
