@@ -48,17 +48,22 @@ jobs:
             --no-build \
             --output $PUBLISH_PATH
             
-      # Add this step to generate SQL migration script
-      - name: Generate migration SQL script
-        run: |
-          # Install EF Core tools
-          dotnet tool install --global dotnet-ef
-          
-          # Generate idempotent SQL script
-          dotnet ef migrations script --idempotent \
-            --project $PROJECT_PATH \
-            --context ProductsContext \
-            --output migration.sql
+            - name: Generate migration SQL script
+            run: |
+              # Install EF Core tools
+              dotnet tool install --global dotnet-ef
+              
+              # Temporarily modify Program.cs to force SQL Server
+              sed -i 's/var folder = Environment.SpecialFolder.LocalApplicationData;/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
+              sed -i 's/var path = Environment.GetFolderPath(folder);/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
+              sed -i 's/var dbPath = System.IO.Path.Join(path, "products.db");/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
+              sed -i 's/options.UseSqlite($"Data Source={dbPath}");/options.UseSqlServer("Server=dummyserver;Database=dummydb;User Id=dummy;Password=dummy;");/g' $PROJECT_PATH/Program.cs
+              
+              # Generate idempotent SQL script
+              dotnet ef migrations script --idempotent --project $PROJECT_PATH --context ProductsContext --output migration.sql
+              
+              # Restore Program.cs (to avoid affecting the actual build)
+              git checkout -- $PROJECT_PATH/Program.cs
       
       - name: Store build artifact
         uses: actions/upload-artifact@v4
