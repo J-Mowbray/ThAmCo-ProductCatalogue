@@ -85,17 +85,30 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var env = services.GetRequiredService<IWebHostEnvironment>();
+    
     if (env.IsDevelopment())
     {
         var context = services.GetRequiredService<ProductsContext>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        
         try
         {
-            ProductsInitaliser.SeedTestData(context).Wait();
+            // Use EnsureCreated to build schema from model in development
+            // This bypasses migrations completely for local SQLite
+            logger.LogInformation("Creating database from model...");
+            context.Database.EnsureDeleted(); // Optional: for clean slate
+            context.Database.EnsureCreated();
+            
+            // Check if seeding is needed
+            if (!context.Products.Any())
+            {
+                logger.LogInformation("Seeding test data...");
+                await ProductsInitaliser.SeedTestData(context);
+            }
         }
         catch (Exception e)
         {
-            var logger = services.GetRequiredService<ILogger<Program>>();
-            logger.LogDebug("Seeding test data to db has failed."); 
+            logger.LogError(e, "Error creating or seeding database");
         }
     }
 }
