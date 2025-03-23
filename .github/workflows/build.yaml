@@ -2,8 +2,8 @@ name: build-and-deploy
 
 on: 
   push:
-    branches: [ main ]  # Adjust if you use a different default branch
-  workflow_dispatch:    # Allows manual triggering
+    branches: [ main ]
+  workflow_dispatch:
 
 env:
   DOTNET_VERSION: 8.0.x
@@ -11,7 +11,7 @@ env:
   PROJECT_PATH: ./ProductCatalogue   
   PUBLISH_PATH: ./myapp
   TESTRESULTS_PATH: ./test-results
-  AZURE_WEBAPP_NAME: thamcoproductcatalogue-cuc2dzgkb9e3ehej  # Your Azure Web App name
+  AZURE_WEBAPP_NAME: thamcoproductcatalogue-cuc2dzgkb9e3ehej
 
 jobs:
   build:
@@ -28,42 +28,38 @@ jobs:
         run: dotnet restore
       
       - name: Build code
-        run: |
-          dotnet build \
-            --configuration $BUILD_CONFIGURATION \
-            --no-restore
+        run: dotnet build --configuration $BUILD_CONFIGURATION --no-restore
       
       - name: Run unit tests
-        run: |
-          dotnet test \
-            --configuration $BUILD_CONFIGURATION \
-            --no-build \
-            --logger trx \
-            --results-directory $TESTRESULTS_PATH
+        run: dotnet test --configuration $BUILD_CONFIGURATION --no-build --logger trx --results-directory $TESTRESULTS_PATH
+      
+      - name: Store test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ env.TESTRESULTS_PATH }}
+        if: ${{ always() }}
       
       - name: Package build
+        run: dotnet publish $PROJECT_PATH --configuration $BUILD_CONFIGURATION --no-build --output $PUBLISH_PATH
+      
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+      
+      - name: Setup SQL Server migration
         run: |
-          dotnet publish $PROJECT_PATH \
-            --configuration $BUILD_CONFIGURATION \
-            --no-build \
-            --output $PUBLISH_PATH
-            
-            - name: Generate migration SQL script
-            run: |
-              # Install EF Core tools
-              dotnet tool install --global dotnet-ef
-              
-              # Temporarily modify Program.cs to force SQL Server
-              sed -i 's/var folder = Environment.SpecialFolder.LocalApplicationData;/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
-              sed -i 's/var path = Environment.GetFolderPath(folder);/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
-              sed -i 's/var dbPath = System.IO.Path.Join(path, "products.db");/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
-              sed -i 's/options.UseSqlite($"Data Source={dbPath}");/options.UseSqlServer("Server=dummyserver;Database=dummydb;User Id=dummy;Password=dummy;");/g' $PROJECT_PATH/Program.cs
-              
-              # Generate idempotent SQL script
-              dotnet ef migrations script --idempotent --project $PROJECT_PATH --context ProductsContext --output migration.sql
-              
-              # Restore Program.cs (to avoid affecting the actual build)
-              git checkout -- $PROJECT_PATH/Program.cs
+          # Create a temporary version of Program.cs for SQL Server
+          cp $PROJECT_PATH/Program.cs $PROJECT_PATH/Program.cs.bak
+          sed -i 's/var folder = Environment.SpecialFolder.LocalApplicationData;/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
+          sed -i 's/var path = Environment.GetFolderPath(folder);/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
+          sed -i 's/var dbPath = System.IO.Path.Join(path, "products.db");/\/\/ Temporarily commented for migration script/g' $PROJECT_PATH/Program.cs
+          sed -i 's/options.UseSqlite($"Data Source={dbPath}");/options.UseSqlServer("Server=dummyserver;Database=dummydb;User Id=dummy;Password=dummy;");/g' $PROJECT_PATH/Program.cs
+      
+      - name: Generate migration SQL script
+        run: dotnet ef migrations script --idempotent --project $PROJECT_PATH --context ProductsContext --output migration.sql
+      
+      - name: Restore original Program.cs
+        run: mv $PROJECT_PATH/Program.cs.bak $PROJECT_PATH/Program.cs
       
       - name: Store build artifact
         uses: actions/upload-artifact@v4
@@ -71,18 +67,16 @@ jobs:
           name: build
           path: ${{ env.PUBLISH_PATH }}
       
-      # Add this step to store SQL script
       - name: Store SQL script artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-migration
           path: migration.sql
   
-  # Add these new jobs
   deploy-database:
     needs: build
     runs-on: ubuntu-latest
-    environment: production  # Create this environment in GitHub repo settings
+    environment: production
     steps:
       - name: Download migration script
         uses: actions/download-artifact@v4
@@ -109,7 +103,7 @@ jobs:
   deploy-webapp:
     needs: deploy-database
     runs-on: ubuntu-latest
-    environment: production  # Same environment as database deployment
+    environment: production
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -128,6 +122,4 @@ jobs:
         run: |
           # Wait for app to start
           sleep 15
-          
-          # Call sync endpoint
           curl -X POST https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug/sync-all-products
