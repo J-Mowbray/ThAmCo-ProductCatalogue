@@ -122,4 +122,4 @@ jobs:
         run: |
           # Wait for app to start
           sleep 15
-          curl -X POST https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug/sync-all-products
+           curl -X POST https://thamcoproductcatalogue-cuc2dzgkb9e3ehej.uksouth-01.azurewebsites.net/debug/sync-all-products
