@@ -1,6 +1,9 @@
-name: build
+name: build-and-deploy
 
-on: [push]
+on: 
+  push:
+    branches: [ main ]  # Adjust if you use a different default branch
+  workflow_dispatch:    # Allows manual triggering
 
 env:
   DOTNET_VERSION: 8.0.x
@@ -8,23 +11,28 @@ env:
   PROJECT_PATH: ./ProductCatalogue   
   PUBLISH_PATH: ./myapp
   TESTRESULTS_PATH: ./test-results
+  AZURE_WEBAPP_NAME: thamcoproductcatalogue-cuc2dzgkb9e3ehej  # Your Azure Web App name
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Install dotnet
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+      
       - name: Install dependencies
         run: dotnet restore
+      
       - name: Build code
         run: |
           dotnet build \
             --configuration $BUILD_CONFIGURATION \
             --no-restore
+      
       - name: Run unit tests
         run: |
           dotnet test \
@@ -32,20 +40,89 @@ jobs:
             --no-build \
             --logger trx \
             --results-directory $TESTRESULTS_PATH
-      - name: Store test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: ${{ env.TESTRESULTS_PATH }}
-        if: ${{ always() }} # ensures test results uploaded even after failure
+      
       - name: Package build
         run: |
           dotnet publish $PROJECT_PATH \
             --configuration $BUILD_CONFIGURATION \
             --no-build \
             --output $PUBLISH_PATH
-      - name: Store build artefact
+            
+      # Add this step to generate SQL migration script
+      - name: Generate migration SQL script
+        run: |
+          # Install EF Core tools
+          dotnet tool install --global dotnet-ef
+          
+          # Generate idempotent SQL script
+          dotnet ef migrations script --idempotent \
+            --project $PROJECT_PATH \
+            --context ProductsContext \
+            --output migration.sql
+      
+      - name: Store build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build
           path: ${{ env.PUBLISH_PATH }}
+      
+      # Add this step to store SQL script
+      - name: Store SQL script artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-migration
+          path: migration.sql
+  
+  # Add these new jobs
+  deploy-database:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production  # Create this environment in GitHub repo settings
+    steps:
+      - name: Download migration script
+        uses: actions/download-artifact@v4
+        with:
+          name: db-migration
+      
+      - name: Install SQL Server tools
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools unixodbc-dev
+      
+      - name: Apply database migrations
+        run: |
+          echo "Applying migrations to Azure SQL Database..."
+          /opt/mssql-tools/bin/sqlcmd \
+            -S ${{ secrets.SQL_SERVER }} \
+            -d ${{ secrets.DATABASE_NAME }} \
+            -U ${{ secrets.SQL_USERNAME }} \
+            -P ${{ secrets.SQL_PASSWORD }} \
+            -i migration.sql
+  
+  deploy-webapp:
+    needs: deploy-database
+    runs-on: ubuntu-latest
+    environment: production  # Same environment as database deployment
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: ${{ env.PUBLISH_PATH }}
+      
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.PUBLISH_PATH }}
+      
+      - name: Trigger product sync
+        run: |
+          # Wait for app to start
+          sleep 15
+          
+          # Call sync endpoint
+          curl -X POST https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug/sync-all-products

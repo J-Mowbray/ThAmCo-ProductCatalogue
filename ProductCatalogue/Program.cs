@@ -9,6 +9,7 @@ using Polly;
 using Polly.Extensions.Http;
 using ProductCatalogue.Services.ProductsRepo;
 using Microsoft.VisualBasic;
+using ProductCatalogue.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,7 +46,11 @@ else
 
 // Configure DB context
 builder.Services.AddDbContext<ProductsContext>(options =>
-{
+{       /* Temporary uncomment to generate SQL for Azure
+        options.UseSqlServer("Server=dummyserver;Database=dummydb;User Id=dummy;Password=dummy;");
+        */
+    
+    // Temporary comment this section out when generating SQL for Azure
     if (builder.Environment.IsDevelopment())
     {
         var folder = Environment.SpecialFolder.LocalApplicationData;
@@ -65,11 +70,13 @@ builder.Services.AddDbContext<ProductsContext>(options =>
                 errorNumbersToAdd: null
             )
         );
-    }
+    } // Comment this out when using SQL for Azure
+    
 });
 
 // Register ProductsRepo
 builder.Services.AddTransient<IProductsRepo, ProductsRepo>();
+builder.Services.AddHostedService<ProductSyncService>();
 
 var app = builder.Build();
 

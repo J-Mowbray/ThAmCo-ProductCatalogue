@@ -1,5 +1,6 @@
-using System;
+// In ProductCatalogue/Data/Products/ProductContext.cs
 using Microsoft.EntityFrameworkCore;
+using ProductCatalogue.Data.Products;
 
 namespace ProductCatalogue.Data.Products;
 
@@ -12,22 +13,29 @@ public class ProductsContext : DbContext
     {
     }
 
-    protected override void OnModelCreating(ModelBuilder builder)
+protected override void OnModelCreating(ModelBuilder builder)
+{
+    base.OnModelCreating(builder);
+
+    builder.Entity<Product>(p =>
     {
-        base.OnModelCreating(builder);
-
-        builder.Entity<Product>(p =>
-        {
-            p.Property(c => c.Name).IsRequired();
-            p.Property(c => c.Ean).IsRequired(false).HasMaxLength(13);
-            p.Property(c => c.CategoryName).IsRequired(false).HasMaxLength(50);
-            p.Property(c => c.BrandName).IsRequired(false).HasMaxLength(50);
-            p.Property(c => c.Description).IsRequired(false);
-            p.Property(c => c.Price).HasPrecision(18, 2);
-
-            p.HasIndex(c => c.CategoryId);
-            p.HasIndex(c => c.BrandId);
+        // Disable auto-generated ID
+        p.Property(e => e.Id).ValueGeneratedNever();
+        
+        // Configure string properties with SQL Server-compatible lengths
+        p.Property(e => e.Name).IsRequired().HasMaxLength(250);
+        p.Property(e => e.Ean).HasMaxLength(50);
+        p.Property(e => e.CategoryName).HasMaxLength(100);
+        p.Property(e => e.BrandName).HasMaxLength(100);
+        
+        // Explicitly set SQL Server types
+        p.Property(e => e.Price).HasColumnType("decimal(18,2)");
+        p.Property(e => e.ExpectedRestock).HasColumnType("datetime2");
             
-        });
-    }
+        // Add indexes
+        p.HasIndex(e => e.CategoryId);
+        p.HasIndex(e => e.BrandId);
+        p.HasIndex(e => e.Ean);
+    });
+}
 }

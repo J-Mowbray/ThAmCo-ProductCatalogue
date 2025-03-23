@@ -11,7 +11,8 @@ public class UnderCuttersServiceFake : IUnderCuttersService
             new ProductDto { Id = 3, Ean = "4006381333931", CategoryId = 2, CategoryName = "Books", BrandId = 9, BrandName = "Red Ribbon", Name = "The Midnight Getaway", Description = "Bestselling crime novel based on the lives of Bonnie & Clyde.", Price = 12.50m, InStock = false, ExpectedRestock = new DateTime(2023, 5, 15) },
             new ProductDto { Id = 4, Ean = "7350053850025", CategoryId = 7, CategoryName = "Sports", BrandId = 3, BrandName = "Active Fit", Name = "Premium Yoga Mat", Description = "Eco-friendly non-slip yoga mat with alignment markings. Get fit, with Active Fit!", Price = 45.00m, InStock = true, ExpectedRestock = null },
             new ProductDto { Id = 5, Ean = "4891945901234", CategoryId = 1, CategoryName = "Fashion", BrandId = 21, BrandName = "Urban", Name = "Denim Jacket", Description = "Rock this denim jacket like it's 1982 again! Made with premium denim.", Price = 79.99m, InStock = true, ExpectedRestock = null },
-            new ProductDto { Id = 6, Ean = "7622210123459", CategoryId = 4, CategoryName = "Food", BrandId = 15, BrandName = "RadDury's", Name = "Chocolate Orange", Description = "The best chocolate orange you'll ever have!", Price = 3.79m, InStock = false, ExpectedRestock = new DateTime(2023, 3, 28) }
+            new ProductDto { Id = 6, Ean = "7622210123459", CategoryId = 4, CategoryName = "Food", BrandId = 15, BrandName = "RadDury's", Name = "Chocolate Orange", Description = "The best chocolate orange you'll ever have!", Price = 3.79m, InStock = false, ExpectedRestock = new DateTime(2023, 3, 28) },
+            new ProductDto { Id = 7, Ean = "7622210123459", CategoryId = 4, CategoryName = "Food", BrandId = 15, BrandName = "Italian Express", Name = "MamaPasta", Description = "Mama's Pasta, the true Italian taste!", Price = 7.99m, InStock = false, ExpectedRestock = new DateTime(2023, 3, 28) }
         };
 
 
