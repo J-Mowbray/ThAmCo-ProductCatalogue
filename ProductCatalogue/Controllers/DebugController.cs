@@ -185,6 +185,7 @@ public class DebugController : ControllerBase
         }
     }
 
+    // If for some reason the table gets broken, likely because of EF migration and not using SQL migration, call this 
     [HttpPost("sql-fix")]
     public async Task<IActionResult> CreateProductTable()
     {
@@ -233,6 +234,7 @@ public class DebugController : ControllerBase
         }
     }
 
+    // Check the health of the database
     [HttpGet("health/database")]
     public async Task<IActionResult> DatabaseHealthCheck()
     {
