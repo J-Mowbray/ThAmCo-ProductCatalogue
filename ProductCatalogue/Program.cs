@@ -39,6 +39,7 @@ else
     builder.Services.AddHttpClient<IUnderCuttersService, UnderCuttersService>(client =>
     {
         client.BaseAddress = new Uri(builder.Configuration["WebServices:UnderCutters:BaseUrl"]);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
     })
     .AddPolicyHandler(GetRetryPolicy())
     .AddPolicyHandler(GetCircuitBreakerPolicy());
@@ -49,7 +50,7 @@ builder.Services.AddDbContext<ProductsContext>(options =>
 {       /* Temporary uncomment to generate SQL for Azure
         options.UseSqlServer("Server=dummyserver;Database=dummydb;User Id=dummy;Password=dummy;");
         */
-    
+
     // Temporary comment this section out when generating SQL for Azure
     if (builder.Environment.IsDevelopment())
     {
@@ -71,7 +72,7 @@ builder.Services.AddDbContext<ProductsContext>(options =>
             )
         );
     } // Comment this out when using SQL for Azure
-    
+
 });
 
 // Register ProductsRepo
@@ -85,12 +86,12 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var env = services.GetRequiredService<IWebHostEnvironment>();
-    
+
     if (env.IsDevelopment())
     {
         var context = services.GetRequiredService<ProductsContext>();
         var logger = services.GetRequiredService<ILogger<Program>>();
-        
+
         try
         {
             // Use EnsureCreated to build schema from model in development
@@ -98,7 +99,7 @@ using (var scope = app.Services.CreateScope())
             logger.LogInformation("Creating database from model...");
             context.Database.EnsureDeleted(); // Optional: for clean slate
             context.Database.EnsureCreated();
-            
+
             // Check if seeding is needed
             if (!context.Products.Any())
             {
